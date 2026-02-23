@@ -1,11 +1,12 @@
 # inventory.ini.example → inventory.ini にコピーして使用
 
 [vms]
-# SSH 接続
-# my-vm ansible_host=192.168.1.100 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_ed25519
+# SSH 接続 (ポートは 2232)
+# my-vm ansible_host=192.168.1.100 ansible_user=ubuntu ansible_port=2232 ansible_ssh_private_key_file=~/.ssh/id_ed25519
 
-# ローカルに適用する場合
+# ローカルに適用する場合 (初回のみ22番で実行し、設定後は2232に切り替え)
 # localhost ansible_connection=local ansible_user=user
 
 [vms:vars]
 ansible_python_interpreter=/usr/bin/python3
+ansible_port=2232
