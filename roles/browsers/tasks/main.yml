@@ -1,0 +1,91 @@
+---
+# ── Chrome & Brave インストール ───────────────────
+
+# ── Google Chrome ─────────────────────────────────
+
+- name: Google GPG キーを追加
+  become: true
+  ansible.builtin.get_url:
+    url: https://dl.google.com/linux/linux_signing_key.pub
+    dest: /tmp/google-linux-signing-key.pub
+    mode: "0644"
+    force: false
+  check_mode: false   # チェックモードでもキー取得は実行
+  tags: browsers, chrome
+
+- name: Google GPG キーを keyring 形式に変換
+  become: true
+  ansible.builtin.shell: |
+    gpg --dearmor < /tmp/google-linux-signing-key.pub \
+      > /usr/share/keyrings/google-chrome-keyring.gpg
+  args:
+    creates: /usr/share/keyrings/google-chrome-keyring.gpg  # 冪等: ファイルが既にあればスキップ
+  tags: browsers, chrome
+
+- name: Google Chrome apt リポジトリを追加
+  become: true
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg]
+      https://dl.google.com/linux/chrome/deb/ stable main
+    filename: google-chrome
+    state: present
+  tags: browsers, chrome
+
+- name: Google Chrome をインストール
+  become: true
+  ansible.builtin.apt:
+    name: google-chrome-stable
+    state: present
+    update_cache: true
+  tags: browsers, chrome
+
+# ── Brave Browser ─────────────────────────────────
+
+- name: Brave GPG キーを追加
+  become: true
+  ansible.builtin.get_url:
+    url: https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+    dest: /usr/share/keyrings/brave-browser-archive-keyring.gpg
+    mode: "0644"
+    force: false   # 冪等
+  tags: browsers, brave
+
+- name: Brave apt リポジトリを追加
+  become: true
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg]
+      https://brave-browser-apt-release.s3.brave.com/ stable main
+    filename: brave-browser
+    state: present
+  tags: browsers, brave
+
+- name: Brave Browser をインストール
+  become: true
+  ansible.builtin.apt:
+    name: brave-browser
+    state: present
+    update_cache: true
+  tags: browsers, brave
+
+# ── インストール確認 ───────────────────────────────
+
+- name: インストール済みブラウザを確認
+  ansible.builtin.command: "{{ item }} --version"
+  register: browser_versions
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  loop:
+    - google-chrome-stable
+    - brave-browser
+  tags: browsers
+
+- name: バージョン表示
+  ansible.builtin.debug:
+    msg: "{{ item.stdout | default('not installed') }}"
+  loop: "{{ browser_versions.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  tags: browsers

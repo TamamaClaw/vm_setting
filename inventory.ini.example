@@ -1,0 +1,11 @@
+# inventory.ini.example → inventory.ini にコピーして使用
+
+[vms]
+# SSH 接続
+# my-vm ansible_host=192.168.1.100 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_ed25519
+
+# ローカルに適用する場合
+# localhost ansible_connection=local ansible_user=user
+
+[vms:vars]
+ansible_python_interpreter=/usr/bin/python3

@@ -1,0 +1,82 @@
+---
+# ── ターミナル設定 (git ブランチ表示) ─────────────
+
+- name: git をインストール (ブランチ表示に必要)
+  become: true
+  ansible.builtin.apt:
+    name: git
+    state: present
+    update_cache: false
+  tags: terminal
+
+# ── ~/.bashrc にブランチ表示を追加 ────────────────
+# blockinfile は冪等: 同じブロックが既にあれば変更なし
+
+- name: git ブランチ表示を ~/.bashrc に追加
+  ansible.builtin.blockinfile:
+    path: "{{ target_home }}/.bashrc"
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED - git branch prompt"
+    block: |
+      # Git ブランチをプロンプトに表示
+      parse_git_branch() {
+          git branch 2>/dev/null | grep "^\*" | sed 's/\* //'
+      }
+
+      git_prompt() {
+          local branch
+          branch=$(parse_git_branch)
+          if [ -n "$branch" ]; then
+              echo " (\[\e[33m\]${branch}\[\e[m\])"
+          fi
+      }
+
+      # PS1: user@host:path (branch) $
+      export PS1='\[\e[32m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]$(git_prompt) \$ '
+  tags: terminal
+
+# ── /etc/skel にも追加 (新規ユーザーにも適用) ─────
+- name: git ブランチ表示を /etc/skel/.bashrc にも追加
+  become: true
+  ansible.builtin.blockinfile:
+    path: /etc/skel/.bashrc
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED - git branch prompt"
+    block: |
+      parse_git_branch() {
+          git branch 2>/dev/null | grep "^\*" | sed 's/\* //'
+      }
+
+      git_prompt() {
+          local branch
+          branch=$(parse_git_branch)
+          if [ -n "$branch" ]; then
+              echo " (\[\e[33m\]${branch}\[\e[m\])"
+          fi
+      }
+
+      export PS1='\[\e[32m\]\u@\h\[\e[m\]:\[\e[34m\]\w\[\e[m\]$(git_prompt) \$ '
+  tags: terminal
+
+# ── zsh 対応 (zsh が入っている場合) ──────────────
+- name: zsh がインストール済みか確認
+  ansible.builtin.stat:
+    path: /usr/bin/zsh
+  register: zsh_bin
+  check_mode: false
+  tags: terminal
+
+- name: git ブランチ表示を ~/.zshrc に追加 (zsh がある場合)
+  ansible.builtin.blockinfile:
+    path: "{{ target_home }}/.zshrc"
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED - git branch prompt"
+    block: |
+      # Git ブランチをプロンプトに表示
+      autoload -Uz vcs_info
+      precmd() { vcs_info }
+      zstyle ':vcs_info:git:*' formats ' (%F{yellow}%b%f)'
+      setopt PROMPT_SUBST
+      PROMPT='%F{green}%n@%m%f:%F{blue}%~%f${vcs_info_msg_0_} %# '
+  when: zsh_bin.stat.exists
+  tags: terminal

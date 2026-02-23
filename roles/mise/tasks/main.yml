@@ -1,0 +1,81 @@
+---
+# ── mise (ランタイムマネージャー) インストール ────
+
+- name: mise がインストール済みか確認
+  ansible.builtin.stat:
+    path: "{{ target_home }}/.local/bin/mise"
+  register: mise_bin
+  check_mode: false
+  tags: mise
+
+- name: mise をインストール
+  ansible.builtin.shell: |
+    curl -fsSL https://mise.run | sh
+  args:
+    creates: "{{ target_home }}/.local/bin/mise"   # 冪等: 既にあればスキップ
+  when: not mise_bin.stat.exists
+  tags: mise
+
+- name: mise を PATH に追加 (~/.bashrc)
+  ansible.builtin.blockinfile:
+    path: "{{ target_home }}/.bashrc"
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED - mise"
+    block: |
+      # mise - ランタイムマネージャー
+      export PATH="$HOME/.local/bin:$PATH"
+      eval "$(mise activate bash)"
+  tags: mise
+
+- name: mise を PATH に追加 (~/.zshrc) (zsh がある場合)
+  ansible.builtin.stat:
+    path: /usr/bin/zsh
+  register: zsh_bin_mise
+  check_mode: false
+  tags: mise
+
+- name: mise activation を ~/.zshrc に追加
+  ansible.builtin.blockinfile:
+    path: "{{ target_home }}/.zshrc"
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED - mise"
+    block: |
+      export PATH="$HOME/.local/bin:$PATH"
+      eval "$(mise activate zsh)"
+  when: zsh_bin_mise.stat.exists
+  tags: mise
+
+# ── mise_tools が定義されていればインストール ─────
+# 例: group_vars/all.yml で
+#   mise_tools:
+#     - { name: node, version: "22" }
+
+- name: mise ツールをインストール
+  ansible.builtin.shell: |
+    export PATH="{{ target_home }}/.local/bin:$PATH"
+    mise install {{ item.name }}@{{ item.version }}
+    mise use --global {{ item.name }}@{{ item.version }}
+  args:
+    executable: /bin/bash
+  loop: "{{ mise_tools }}"
+  when: mise_tools | length > 0
+  register: mise_tool_install
+  changed_when: "'Installed' in mise_tool_install.stdout"
+  tags: mise
+
+# ── バージョン確認 ────────────────────────────────
+
+- name: mise のバージョンを確認
+  ansible.builtin.shell: |
+    export PATH="{{ target_home }}/.local/bin:$PATH"
+    mise --version
+  register: mise_version
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  tags: mise
+
+- name: mise バージョン表示
+  ansible.builtin.debug:
+    msg: "mise: {{ mise_version.stdout | default('not installed') }}"
+  tags: mise

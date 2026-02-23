@@ -1,0 +1,12 @@
+---
+# ── 変数 ────────────────────────────────────────────
+target_user: "{{ ansible_user }}"
+target_home: "{{ ansible_env.HOME }}"
+
+# Tailscale 認証キー (任意: ansible-vault で暗号化推奨)
+# tailscale_auth_key: "{{ vault_tailscale_auth_key }}"
+
+# mise でインストールするランタイム (任意)
+mise_tools: []
+  # - { name: node, version: "22" }
+  # - { name: python, version: "3.12" }

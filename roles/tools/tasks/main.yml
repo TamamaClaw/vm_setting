@@ -1,0 +1,78 @@
+---
+# ── 基本ツール & gh コマンドインストール ──────────
+
+# ── 基本ツール (apt) ──────────────────────────────
+
+- name: 基本ツールをインストール
+  become: true
+  ansible.builtin.apt:
+    name:
+      - curl
+      - wget
+      - git
+      - unzip
+      - jq
+      - vim
+      - htop
+      - tree
+      - build-essential
+      - ca-certificates
+      - gnupg
+      - apt-transport-https
+      - software-properties-common
+    state: present
+    update_cache: false
+  tags: tools
+
+# ── GitHub CLI (gh) ───────────────────────────────
+
+- name: GitHub CLI GPG キーを追加
+  become: true
+  ansible.builtin.get_url:
+    url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    dest: /usr/share/keyrings/githubcli-archive-keyring.gpg
+    mode: "0644"
+    force: false   # 冪等
+  tags: tools, gh
+
+- name: GitHub CLI apt リポジトリを追加
+  become: true
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [arch={{ ansible_architecture }}
+      signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg]
+      https://cli.github.com/packages stable main
+    filename: github-cli
+    state: present
+  tags: tools, gh
+
+- name: gh をインストール
+  become: true
+  ansible.builtin.apt:
+    name: gh
+    state: present
+    update_cache: true
+  tags: tools, gh
+
+# ── バージョン確認 ────────────────────────────────
+
+- name: ツールのバージョンを確認
+  ansible.builtin.command: "{{ item.cmd }}"
+  register: tool_versions
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  loop:
+    - { name: curl,  cmd: "curl --version" }
+    - { name: git,   cmd: "git --version" }
+    - { name: gh,    cmd: "gh --version" }
+    - { name: jq,    cmd: "jq --version" }
+  tags: tools
+
+- name: バージョン表示
+  ansible.builtin.debug:
+    msg: "{{ item.item.name }}: {{ item.stdout_lines[0] | default('not installed') }}"
+  loop: "{{ tool_versions.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  tags: tools

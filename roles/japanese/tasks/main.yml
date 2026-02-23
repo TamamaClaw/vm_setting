@@ -1,0 +1,49 @@
+---
+# ── 日本語キーボード対応 ──────────────────────────
+
+- name: 日本語入力関連パッケージをインストール
+  become: true
+  ansible.builtin.apt:
+    name:
+      - ibus
+      - ibus-mozc
+      - mozc-utils-gui
+      - fonts-noto-cjk          # CJK フォント
+      - fonts-noto-cjk-extra
+      - language-pack-ja        # 日本語ロケール
+    state: present
+    update_cache: false
+  tags: japanese
+
+- name: 日本語ロケールを生成
+  become: true
+  ansible.builtin.locale_gen:
+    name: ja_JP.UTF-8
+    state: present
+  tags: japanese
+
+- name: キーボードレイアウトを日本語に設定 (/etc/default/keyboard)
+  become: true
+  ansible.builtin.blockinfile:
+    path: /etc/default/keyboard
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED - japanese keyboard"
+    block: |
+      XKBMODEL="pc105"
+      XKBLAYOUT="jp"
+      XKBVARIANT=""
+      XKBOPTIONS=""
+      BACKSPACE="guess"
+  notify: apply keyboard layout
+  tags: japanese
+
+- name: /etc/environment に日本語ロケール設定を追加
+  become: true
+  ansible.builtin.blockinfile:
+    path: /etc/environment
+    create: true
+    marker: "# {mark} ANSIBLE MANAGED - locale"
+    block: |
+      LANG=ja_JP.UTF-8
+      LANGUAGE=ja_JP:ja
+  tags: japanese

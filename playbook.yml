@@ -1,0 +1,35 @@
+---
+# vm_setting - VM 初期セットアップ Playbook
+# 対象: Ubuntu 22.04 / 24.04
+#
+# 実行:
+#   ansible-playbook -i inventory.ini playbook.yml
+#   ansible-playbook -i inventory.ini playbook.yml --check   # チェックモード
+#   ansible-playbook -i inventory.ini playbook.yml --tags ssh,tools  # タグ指定
+
+- name: VM 初期セットアップ
+  hosts: all
+  gather_facts: true
+  become: false   # 各タスクで個別に become: true
+
+  roles:
+    - role: ssh
+      tags: ssh
+
+    - role: tailscale
+      tags: tailscale
+
+    - role: japanese
+      tags: japanese
+
+    - role: terminal
+      tags: terminal
+
+    - role: browsers
+      tags: browsers
+
+    - role: tools
+      tags: tools
+
+    - role: mise
+      tags: mise

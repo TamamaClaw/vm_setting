@@ -1,0 +1,64 @@
+---
+# ── Tailscale インストール ────────────────────────
+
+- name: Tailscale GPG キーを追加
+  become: true
+  ansible.builtin.get_url:
+    url: https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_distribution_release }}.gpg
+    dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    mode: "0644"
+    force: false   # 既存ファイルは再ダウンロードしない (冪等)
+  tags: tailscale
+
+- name: Tailscale apt リポジトリを追加
+  become: true
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg]
+      https://pkgs.tailscale.com/stable/ubuntu
+      {{ ansible_distribution_release }} main
+    filename: tailscale
+    state: present
+  tags: tailscale
+
+- name: Tailscale をインストール
+  become: true
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+    update_cache: true
+  tags: tailscale
+
+- name: tailscaled サービスを有効化・起動
+  become: true
+  ansible.builtin.systemd:
+    name: tailscaled
+    enabled: true
+    state: started
+  tags: tailscale
+
+- name: Tailscale 接続状態を確認
+  ansible.builtin.command: tailscale status --json
+  register: ts_status
+  changed_when: false   # 状態確認なので変更なし
+  check_mode: false
+  failed_when: false
+  tags: tailscale
+
+- name: Tailscale ステータス表示
+  ansible.builtin.debug:
+    msg: "Tailscale: {{ (ts_status.stdout | from_json).BackendState | default('unknown') }}"
+  when: ts_status.rc == 0
+  tags: tailscale
+
+# tailscale_auth_key が定義されている場合のみ自動接続
+- name: Tailscale に接続 (auth_key が設定されている場合)
+  become: true
+  ansible.builtin.command: >
+    tailscale up --authkey={{ tailscale_auth_key }} --accept-routes
+  when:
+    - tailscale_auth_key is defined
+    - tailscale_auth_key | length > 0
+    - (ts_status.stdout | from_json).BackendState | default('') != 'Running'
+  changed_when: true
+  tags: tailscale

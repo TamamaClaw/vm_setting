@@ -1,0 +1,31 @@
+---
+# ── SSH インストール & 有効化 ─────────────────────
+
+- name: openssh-server をインストール
+  become: true
+  ansible.builtin.apt:
+    name: openssh-server
+    state: present
+    update_cache: false
+  tags: ssh
+
+- name: SSH サービスを有効化・起動
+  become: true
+  ansible.builtin.systemd:
+    name: ssh
+    enabled: true
+    state: started
+  tags: ssh
+
+- name: SSH の状態を確認
+  become: true
+  ansible.builtin.systemd:
+    name: ssh
+  register: ssh_status
+  check_mode: false   # チェックモードでも状態取得は実行
+  tags: ssh
+
+- name: SSH ステータス表示
+  ansible.builtin.debug:
+    msg: "SSH: {{ ssh_status.status.ActiveState }}"
+  tags: ssh

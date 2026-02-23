@@ -1,0 +1,5 @@
+---
+- name: apply keyboard layout
+  become: true
+  ansible.builtin.command: dpkg-reconfigure -f noninteractive keyboard-configuration
+  changed_when: true
