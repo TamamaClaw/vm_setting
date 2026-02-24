@@ -1,0 +1,3 @@
+---
+dataiku_install_dir: "{{ ansible_env.HOME }}/docker/dataiku"
+dataiku_port: 10000

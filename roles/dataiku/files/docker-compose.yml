@@ -1,0 +1,12 @@
+services:
+  dataiku:
+    image: dataiku/dss:latest
+    container_name: dataiku-dss
+    restart: unless-stopped
+    ports:
+      - "10000:10000"
+    volumes:
+      - dss_data:/home/dataiku/dss
+
+volumes:
+  dss_data:

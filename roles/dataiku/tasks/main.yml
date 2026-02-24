@@ -1,0 +1,128 @@
+---
+# ── Dataiku DSS インストール ──────────────────────
+
+# ── 1. Docker インストール ────────────────────────
+
+- name: Docker インストール済みか確認
+  ansible.builtin.command: docker --version
+  register: docker_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: dataiku
+
+- name: Docker をインストール
+  become: true
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-compose-plugin
+      - ca-certificates
+      - curl
+    state: present
+    update_cache: true
+  when: docker_check.rc != 0
+  tags: dataiku
+
+- name: Docker サービスを有効化・起動
+  become: true
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+  tags: dataiku
+
+- name: ユーザーを docker グループに追加
+  become: true
+  ansible.builtin.user:
+    name: "{{ target_user }}"
+    groups: docker
+    append: true
+  tags: dataiku
+
+# ── 2. Docker Compose plugin 確認 ─────────────────
+
+- name: docker compose plugin が使えるか確認
+  ansible.builtin.command: docker compose version
+  register: compose_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: dataiku
+
+- name: docker compose plugin をインストール (なければ)
+  become: true
+  ansible.builtin.apt:
+    name: docker-compose-plugin
+    state: present
+    update_cache: false
+  when: compose_check.rc != 0
+  tags: dataiku
+
+# ── 3. インストール先ディレクトリ作成 ─────────────
+
+- name: Dataiku 用ディレクトリを作成
+  ansible.builtin.file:
+    path: "{{ dataiku_install_dir }}"
+    state: directory
+    mode: "0755"
+  tags: dataiku
+
+- name: docker-compose.yml を配置
+  ansible.builtin.copy:
+    src: docker-compose.yml
+    dest: "{{ dataiku_install_dir }}/docker-compose.yml"
+    mode: "0644"
+  register: compose_file
+  tags: dataiku
+
+# ── 4. コンテナ起動 ───────────────────────────────
+
+- name: Dataiku コンテナが既に動いているか確認
+  ansible.builtin.command: docker compose -f {{ dataiku_install_dir }}/docker-compose.yml ps -q dataiku
+  register: container_running
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: dataiku
+
+- name: Dataiku を起動 (docker compose up)
+  ansible.builtin.command: >
+    docker compose -f {{ dataiku_install_dir }}/docker-compose.yml up -d --pull missing
+  when: container_running.stdout == ""
+  changed_when: true
+  tags: dataiku
+
+- name: compose ファイル変更時は再起動
+  ansible.builtin.command: >
+    docker compose -f {{ dataiku_install_dir }}/docker-compose.yml up -d
+  when:
+    - container_running.stdout != ""
+    - compose_file.changed
+  changed_when: true
+  tags: dataiku
+
+# ── 5. 起動を待機 ─────────────────────────────────
+
+- name: DSS の起動を待機 (最大10分・初回は時間がかかる)
+  ansible.builtin.uri:
+    url: "http://localhost:{{ dataiku_port }}/"
+    status_code: 200
+    validate_certs: false
+  register: dss_health
+  retries: 60          # 10秒 × 60回 = 最大10分
+  delay: 10
+  until: dss_health.status == 200
+  changed_when: false
+  check_mode: false
+  tags: dataiku
+
+# ── 6. 完了表示 ───────────────────────────────────
+
+- name: アクセス先を表示
+  ansible.builtin.debug:
+    msg:
+      - "✅ Dataiku DSS 起動完了！"
+      - "👉 http://{{ ansible_default_ipv4.address | default('localhost') }}:{{ dataiku_port }}"
+      - "初回ログイン: admin / admin"
+  tags: dataiku
