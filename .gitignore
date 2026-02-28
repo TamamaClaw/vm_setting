@@ -1,0 +1,5 @@
+# 認証情報を含むインベントリは commit しない
+inventory.local
+*.retry
+*.vault_pass
+.vault_pass

@@ -1,0 +1,8 @@
+---
+# インストールするランタイム
+# mise_tools:
+#   - { name: node, version: "22" }
+#   - { name: python, version: "3.12" }
+#   - { name: go, version: "latest" }
+mise_tools:
+  - { name: node, version: "22" }

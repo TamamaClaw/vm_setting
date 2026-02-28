@@ -9,75 +9,68 @@
     update_cache: false
   tags: ssh
 
-# ── sshd_config を安全な設定に変更 ───────────────
+# ── 公開鍵登録 ────────────────────────────────────
 
-- name: SSH ポートを 2232 に変更
-  become: true
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?Port\s'
-    line: 'Port 2232'
+- name: .ssh ディレクトリを作成
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME }}/.ssh"
+    state: directory
+    mode: "0700"
+  tags: ssh
+
+- name: 公開鍵を authorized_keys に追加
+  ansible.posix.authorized_key:
+    user: "{{ ansible_user }}"
+    key: "{{ item }}"
     state: present
-    backup: true   # 変更前にバックアップ (.bak) を作成
+  loop: "{{ ssh_authorized_keys }}"
+  when: ssh_authorized_keys | length > 0
+  tags: ssh
+
+# ── sshd_config.d ドロップイン設定 ────────────────
+
+- name: sshd_config.d ディレクトリ確認
+  become: true
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    mode: "0755"
+  tags: ssh
+
+- name: セキュア SSH 設定を配置
+  become: true
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-hardened.conf
+    mode: "0644"
+    content: |
+      Port {{ ssh_port }}
+      PubkeyAuthentication {{ ssh_pubkey_authentication }}
+      PasswordAuthentication {{ ssh_password_authentication }}
+      ChallengeResponseAuthentication no
+      PermitRootLogin {{ ssh_permit_root_login }}
+      PermitEmptyPasswords no
   notify: restart sshd
   tags: ssh
 
-- name: 公開鍵認証を有効化
+# ── sshd_config の Include 確認 ───────────────────
+
+- name: sshd_config に Include ディレクティブがあるか確認
   become: true
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: '^#?PubkeyAuthentication\s'
-    line: 'PubkeyAuthentication yes'
+    line: "Include /etc/ssh/sshd_config.d/*.conf"
     state: present
+    insertbefore: BOF
   notify: restart sshd
   tags: ssh
 
-- name: パスワード認証を無効化
-  become: true
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?PasswordAuthentication\s'
-    line: 'PasswordAuthentication no'
-    state: present
-  notify: restart sshd
-  tags: ssh
+# ── 構文チェック ──────────────────────────────────
 
-- name: チャレンジレスポンス認証を無効化
-  become: true
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?ChallengeResponseAuthentication\s'
-    line: 'ChallengeResponseAuthentication no'
-    state: present
-  notify: restart sshd
-  tags: ssh
-
-- name: root ログインを無効化
-  become: true
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?PermitRootLogin\s'
-    line: 'PermitRootLogin no'
-    state: present
-  notify: restart sshd
-  tags: ssh
-
-- name: 空パスワードを禁止
-  become: true
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: '^#?PermitEmptyPasswords\s'
-    line: 'PermitEmptyPasswords no'
-    state: present
-  notify: restart sshd
-  tags: ssh
-
-# ── sshd_config の構文チェック ────────────────────
 - name: sshd_config の構文チェック
   become: true
   ansible.builtin.command: sshd -t
   changed_when: false
-  check_mode: false   # チェックモードでも構文確認は実行
+  check_mode: false
   tags: ssh
 
 # ── サービス管理 ──────────────────────────────────
@@ -90,17 +83,9 @@
     state: started
   tags: ssh
 
-# ── 現在の設定を確認 ──────────────────────────────
+# ── 確認表示 ──────────────────────────────────────
 
-- name: SSH 設定を確認
-  ansible.builtin.shell: |
-    grep -E '^(Port|PubkeyAuthentication|PasswordAuthentication|PermitRootLogin)' /etc/ssh/sshd_config
-  register: ssh_config_check
-  changed_when: false
-  check_mode: false
-  tags: ssh
-
-- name: SSH 設定内容を表示
+- name: SSH 設定を表示
   ansible.builtin.debug:
-    msg: "{{ ssh_config_check.stdout_lines }}"
+    msg: "✅ SSH: port={{ ssh_port }}, pubkey={{ ssh_pubkey_authentication }}, password={{ ssh_password_authentication }}"
   tags: ssh

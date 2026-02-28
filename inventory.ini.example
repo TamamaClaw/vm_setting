@@ -1,12 +1,13 @@
-# inventory.ini.example → inventory.ini にコピーして使用
+# このファイルをコピーして inventory.local を作成してください
+# cp inventory.ini.example inventory.local
+# inventory.local は .gitignore されています (パスワードを含むため)
 
 [vms]
-# SSH 接続 (ポートは 2232)
-# my-vm ansible_host=192.168.1.100 ansible_user=ubuntu ansible_port=2232 ansible_ssh_private_key_file=~/.ssh/id_ed25519
+# ローカル実行
+localhost ansible_connection=local ansible_user=user ansible_become_password=YOUR_SUDO_PASSWORD
 
-# ローカルに適用する場合 (初回のみ22番で実行し、設定後は2232に切り替え)
-# localhost ansible_connection=local ansible_user=user
+# リモートVM (SSH接続)
+# 192.168.1.100 ansible_user=user ansible_port=2232 ansible_become_password=YOUR_SUDO_PASSWORD
 
 [vms:vars]
 ansible_python_interpreter=/usr/bin/python3
-ansible_port=2232

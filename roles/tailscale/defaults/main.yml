@@ -1,0 +1,5 @@
+---
+# Tailscale 認証キー (ansible-vault での暗号化推奨)
+# 例: tailscale_auth_key: "tskey-auth-xxxx"
+tailscale_auth_key: ""
+tailscale_extra_args: ""

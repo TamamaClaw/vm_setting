@@ -1,0 +1,10 @@
+---
+ssh_port: 2232
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_pubkey_authentication: "yes"
+# 追加する公開鍵リスト (空なら既存 authorized_keys のみ使用)
+ssh_authorized_keys: []
+# 例:
+# ssh_authorized_keys:
+#   - "ssh-ed25519 AAAA... user@host"

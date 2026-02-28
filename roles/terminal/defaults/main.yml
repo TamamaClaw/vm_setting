@@ -1,0 +1,6 @@
+---
+terminal_install_zsh: true
+terminal_install_tmux: true
+terminal_install_fzf: true
+terminal_install_bat: true
+terminal_install_eza: true
